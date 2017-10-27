@@ -312,7 +312,7 @@ module Geocoder
 
         
         http_client.start(uri.host, uri.port, use_ssl: ssl_mode, open_timeout: configuration.timeout, read_timeout: configuration.timeout) do |client|
-          configure_ssl!(client) if ssl_mode
+          configure_ssl!(client) if use_ssl?
 
           req = Net::HTTP::Get.new(uri.request_uri, configuration.http_headers)
           
@@ -339,7 +339,7 @@ module Geocoder
 
         # Do not try to use proxy
         http_client(false).start(uri.host, uri.port, use_ssl: ssl_mode, open_timeout: configuration.timeout, read_timeout: configuration.timeout) do |client|
-          configure_ssl!(client) if ssl_mode
+          configure_ssl!(client) if use_ssl?
 
           req = Net::HTTP::Get.new(uri.request_uri, configuration.http_headers)
           

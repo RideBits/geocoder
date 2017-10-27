@@ -104,10 +104,17 @@ module Geocoder
         Geocoder.config_for_lookup(handle)
       end
 
-      ##
-      # Object used to make HTTP requests.
-      #
-      def http_client
+      def uses_proxy?
+        proxy_name = "#{protocol}_proxy"
+        !configuration.send(proxy_name).nil?
+      end
+
+      def proxy_url_is?(match)
+        u = get_proxy_url
+        !u.nil? and u =~ match
+      end
+
+      def get_proxy_url
         proxy_name = "#{protocol}_proxy"
         if proxy = configuration.send(proxy_name)
           proxy_url = nil
@@ -117,14 +124,37 @@ module Geocoder
           else
             proxy_url = !!(proxy =~ /^#{protocol}/) ? proxy : protocol + '://' + proxy
           end
+          proxy_url
+        else
+          nil
+        end  
+      end
 
-          begin
-            uri = URI.parse(proxy_url)
-          rescue URI::InvalidURIError
-            raise ConfigurationError,
-              "Error parsing #{protocol.upcase} proxy URL: '#{proxy_url}'"
+      ##
+      # Object used to make HTTP requests.
+      #
+      def http_client(can_use_proxy = true)
+        proxy_name = "#{protocol}_proxy"
+        if can_use_proxy
+          if proxy = configuration.send(proxy_name)
+            proxy_url = nil
+            
+            if proxy =~ /^https?:\/\//
+              proxy_url = proxy
+            else
+              proxy_url = !!(proxy =~ /^#{protocol}/) ? proxy : protocol + '://' + proxy
+            end
+  
+            begin
+              uri = URI.parse(proxy_url)
+            rescue URI::InvalidURIError
+              raise ConfigurationError,
+                "Error parsing #{protocol.upcase} proxy URL: '#{proxy_url}'"
+            end
+            Net::HTTP::Proxy(uri.host, uri.port, uri.user, uri.password)
+          else
+            Net::HTTP
           end
-          Net::HTTP::Proxy(uri.host, uri.port, uri.user, uri.password)
         else
           Net::HTTP
         end
@@ -273,16 +303,19 @@ module Geocoder
         end
       end
 
-      ##
-      # Make an HTTP(S) request to a geocoding API and
-      # return the response object.
-      #
-      def make_api_request(query)
+
+      def make_request_with_proxy_if_available(query)
         uri = URI.parse(query_url(query))
         Geocoder.log(:debug, "Geocoder: HTTP request being made for #{uri.to_s}")
-        http_client.start(uri.host, uri.port, use_ssl: use_ssl?, open_timeout: configuration.timeout, read_timeout: configuration.timeout) do |client|
-          configure_ssl!(client) if use_ssl?
+
+        ssl_mode = uses_proxy? ? proxy_url_is?(/^https/) : use_ssl?
+
+        
+        http_client.start(uri.host, uri.port, use_ssl: ssl_mode, open_timeout: configuration.timeout, read_timeout: configuration.timeout) do |client|
+          configure_ssl!(client) if ssl_mode
+
           req = Net::HTTP::Get.new(uri.request_uri, configuration.http_headers)
+          
           if configuration.basic_auth[:user] and configuration.basic_auth[:password]
             req.basic_auth(
               configuration.basic_auth[:user],
@@ -295,6 +328,47 @@ module Geocoder
         raise Geocoder::LookupTimeout
       rescue Errno::EHOSTUNREACH, Errno::ETIMEDOUT, Errno::ENETUNREACH, Errno::ECONNRESET
         raise Geocoder::NetworkError
+      end
+
+      def make_request_normaly(query)
+        uri = URI.parse(query_url(query))
+
+        Geocoder.log(:debug, "Geocoder: HTTP request being made for #{uri.to_s}")
+
+        ssl_mode = use_ssl?
+
+        # Do not try to use proxy
+        http_client(false).start(uri.host, uri.port, use_ssl: ssl_mode, open_timeout: configuration.timeout, read_timeout: configuration.timeout) do |client|
+          configure_ssl!(client) if ssl_mode
+
+          req = Net::HTTP::Get.new(uri.request_uri, configuration.http_headers)
+          
+          if configuration.basic_auth[:user] and configuration.basic_auth[:password]
+            req.basic_auth(
+              configuration.basic_auth[:user],
+              configuration.basic_auth[:password]
+            )
+          end
+          client.request(req)
+        end
+      rescue Timeout::Error
+        raise Geocoder::LookupTimeout
+      rescue Errno::EHOSTUNREACH, Errno::ETIMEDOUT, Errno::ENETUNREACH, Errno::ECONNRESET
+        raise Geocoder::NetworkError
+      end
+
+      ##
+      # Make an HTTP(S) request to a geocoding API and
+      # return the response object.
+      #
+      def make_api_request(query)
+        begin
+          r = make_request_with_proxy_if_available(query)
+          r
+        rescue Exception => ex
+          r = make_request_normaly(query)
+          r
+        end  
       end
 
       def use_ssl?

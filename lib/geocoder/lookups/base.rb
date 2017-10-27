@@ -110,7 +110,14 @@ module Geocoder
       def http_client
         proxy_name = "#{protocol}_proxy"
         if proxy = configuration.send(proxy_name)
-          proxy_url = !!(proxy =~ /^#{protocol}/) ? proxy : protocol + '://' + proxy
+          proxy_url = nil
+          
+          if proxy =~ /^https?:\/\//
+            proxy_url = proxy
+          else
+            proxy_url = !!(proxy =~ /^#{protocol}/) ? proxy : protocol + '://' + proxy
+          end
+
           begin
             uri = URI.parse(proxy_url)
           rescue URI::InvalidURIError

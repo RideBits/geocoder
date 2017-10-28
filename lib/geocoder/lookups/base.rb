@@ -366,9 +366,12 @@ module Geocoder
           r = make_request_with_proxy_if_available(query)
           r
         rescue Exception => ex
-          
-          r = make_request_normaly(query)
-          r
+          if uses_proxy?
+            r = make_request_normaly(query)
+            r
+          else
+            raise ex
+          end
         end  
       end
 

@@ -316,7 +316,7 @@ module Geocoder
         end
         
         http_client(use_proxy_if_available).start(uri.host, uri.port, use_ssl: ssl_mode, open_timeout: configuration.timeout, read_timeout: configuration.timeout) do |client|
-          configure_ssl!(client) if use_ssl?
+          configure_ssl!(client) if ssl_mode
 
           req = Net::HTTP::Get.new(uri.request_uri, configuration.http_headers)
           

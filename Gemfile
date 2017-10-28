@@ -22,6 +22,8 @@ group :development, :test do
   end
 end
 
+gem 'rest-client', '~> 2.0', '>= 2.0.2'
+
 group :test do
   platforms :ruby, :mswin, :mingw do
     gem 'sqlite3'

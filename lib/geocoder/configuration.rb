@@ -58,6 +58,7 @@ module Geocoder
       :use_https,
       :http_proxy,
       :https_proxy,
+      :proxy,
       :api_key,
       :cache,
       :cache_prefix,
@@ -104,6 +105,7 @@ module Geocoder
       @data[:use_https]    = false       # use HTTPS for lookup requests? (if supported)
       @data[:http_proxy]   = nil         # HTTP proxy server (user:pass@host:port)
       @data[:https_proxy]  = nil         # HTTPS proxy server (user:pass@host:port)
+      @data[:proxy]        = nil         # Default proxy server
       @data[:api_key]      = nil         # API key for geocoding service
       @data[:cache]        = nil         # cache object (must respond to #[], #[]=, and #keys)
       @data[:cache_prefix] = "geocoder:" # prefix (string) to use for all cache keys

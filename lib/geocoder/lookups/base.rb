@@ -1,6 +1,8 @@
 require 'net/http'
 require 'net/https'
 require 'uri'
+require 'rest-client'
+
 
 unless defined?(ActiveSupport::JSON)
   begin
@@ -111,7 +113,7 @@ module Geocoder
 
       def proxy_url_is?(match)
         u = get_proxy_url
-        !u.nil? and u =~ match
+        !u.nil? and !(u =~ match).nil?
       end
 
       def get_proxy_url
@@ -303,17 +305,33 @@ module Geocoder
         end
       end
 
-
       def make_api_request_impl(query, use_proxy_if_available = true)
+        if use_proxy_if_available
+          proxy = configuration.send(:proxy)
+          unless proxy.nil?
+            RestClient.proxy = proxy
+            RestClient.get query_url(query)
+          else
+            RestClient.get query_url(query)
+          end
+        else
+          RestClient.get query_url(query)
+        end
+      end
+
+
+      def make_api_request_impl_old(query, use_proxy_if_available = true)
         uri = URI.parse(query_url(query))
+        
         Geocoder.log(:debug, "Geocoder: HTTP request being made for #{uri.to_s}")
+
         ssl_mode = false
 
-        if use_proxy_if_available
-          ssl_mode = uses_proxy? ? proxy_url_is?(/^https/) : use_ssl?
-        else
-          ssl_mode = use_ssl?
-        end
+        # if use_proxy_if_available
+        #   ssl_mode = uses_proxy? ? proxy_url_is?(/^https/) : use_ssl?
+        # else
+        #   ssl_mode = use_ssl?
+        # end
         
         http_client(use_proxy_if_available).start(uri.host, uri.port, use_ssl: ssl_mode, open_timeout: configuration.timeout, read_timeout: configuration.timeout) do |client|
           configure_ssl!(client) if ssl_mode

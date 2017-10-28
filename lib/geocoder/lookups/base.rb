@@ -314,10 +314,6 @@ module Geocoder
         else
           ssl_mode = use_ssl?
         end
-
-
-        
-
         
         http_client(use_proxy_if_available).start(uri.host, uri.port, use_ssl: ssl_mode, open_timeout: configuration.timeout, read_timeout: configuration.timeout) do |client|
           configure_ssl!(client) if use_ssl?
@@ -345,11 +341,16 @@ module Geocoder
       # return the response object.
       #
       def make_api_request(query)
+        use_second_attempt = uses_proxy?
         begin
           r = make_api_request_impl(query, true)
+          if !valid_response?(r) and uses_proxy?
+            use_second_attempt = false
+            r = make_api_request_impl(query, false)
+          end
           r
         rescue Exception => ex
-          if uses_proxy?
+          if use_second_attempt
             r = make_api_request_impl(query, false)
             r
           else

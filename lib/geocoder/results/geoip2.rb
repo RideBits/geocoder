@@ -68,11 +68,13 @@ module Geocoder
         @language ||= default_language
       end
 
-      private
 
       def data
         @data.to_hash
       end
+
+      private
+
 
       def default_language
         @default_language = Geocoder.config[:language].to_s

@@ -26,6 +26,12 @@ module Geocoder
         )
       end
 
+      def time_zone
+        fetch_name(
+          data.fetch('location', {}).fetch('time_zone', {})
+        )
+      end
+
       def state_code
         data.fetch('subdivisions', []).fetch(0, {}).fetch('iso_code', '')
       end

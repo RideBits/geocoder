@@ -27,7 +27,7 @@ module Geocoder
       end
 
       def time_zone
-        data.fetch("location", nil).try(:time_zone)
+        data.fetch("location", nil).fetch('time_zone', '')
       end
 
       def state_code
